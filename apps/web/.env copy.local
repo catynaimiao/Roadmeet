@@ -1,0 +1,8 @@
+# DashScope credentials (server-only)
+APP_ID=29a9ba807927447cafc194af2b78a48e
+API_KEY=
+
+# Optional aliases used by the server route
+DASHSCOPE_APP_ID=29a9ba807927447cafc194af2b78a48e
+DASHSCOPE_API_KEY=
+

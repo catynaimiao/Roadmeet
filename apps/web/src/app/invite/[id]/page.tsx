@@ -1,10 +1,14 @@
-﻿'use client';
+'use client';
 
-import { useState, useEffect, use, useRef } from 'react';
+import { useEffect, useRef, useState, use } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
-  MapPin, Clock, Check, Sparkles, Navigation,
+  MapPin,
+  Clock,
+  Check,
+  Sparkles,
+  Navigation,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,22 +29,18 @@ const MapView = dynamic(
   { ssr: false, loading: () => <div className="w-full h-72 bg-muted" /> }
 );
 
-const APP_ID = '29a9ba807927447cafc194af2b78a48e';
-const API_KEY = 'sk-eb82588ab3dc495aa48cb90d2c52fe42';
-const API_URL = "https://dashscope.aliyuncs.com/api/v1/apps//completion"
-
 const GENERATION_STEPS = [
-  { label: '瀹氫綅鍙屾柟鍑哄彂鐐?, delayMs: 400 },
-  { label: '鍖归厤鍋忓ソ涓庨绠?, delayMs: 900 },
-  { label: '绛涢€夐€氬嫟鍙嬪ソ鍊欓€?, delayMs: 1400 },
-  { label: '鐢熸垚鎺ㄨ崘鐞嗙敱', delayMs: 1900 },
+  { label: '定位双方出发点', delayMs: 400 },
+  { label: '匹配偏好与预算', delayMs: 900 },
+  { label: '筛选通勤友好候选', delayMs: 1400 },
+  { label: '生成推荐理由', delayMs: 1900 },
 ];
 
 const formatContextTime = (scheduledAt: string) => {
   const date = new Date(scheduledAt);
   if (Number.isNaN(date.getTime())) return scheduledAt;
-  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
-  const time = date.toLocaleTimeString('en-US', {
+  const weekday = date.toLocaleDateString('zh-CN', { weekday: 'short' });
+  const time = date.toLocaleTimeString('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -48,105 +48,24 @@ const formatContextTime = (scheduledAt: string) => {
   return `${weekday} ${time}`;
 };
 
-const normalizeImageUrl = (value?: string) => {
-  if (!value) return undefined;
-  const markdownMatch = value.match(/\((https?:\/\/[^)]+)\)/);
-  if (markdownMatch) return markdownMatch[1];
-  return value;
-};
-
-const normalizeStringArray = (value: unknown) => {
-  if (Array.isArray(value)) return value.map((item) => String(item)).filter(Boolean);
-  if (typeof value === 'string') {
-    return value
-      .split(/[锛?]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-  return [] as string[];
-};
-
-const normalizeRecommendation = (raw: Record<string, unknown>) => {
-  const candidates = Array.isArray(raw.candidates) ? raw.candidates : [];
-  return {
-    midpoint_analysis: String(raw.midpoint_analysis ?? ''),
-    candidates: candidates
-      .map((candidate) => {
-        const item = candidate as Record<string, unknown>;
-        return {
-          venue_name: String(item.venue_name ?? item.name ?? ''),
-          address: String(item.address ?? ''),
-          location: {
-            lat: Number((item.location as { lat?: number })?.lat ?? item.lat ?? 0),
-            lng: Number((item.location as { lng?: number })?.lng ?? item.lng ?? 0),
-          },
-          type: item.type === 'sponsored' ? 'sponsored' : 'organic',
-          recommendation_reason: String(item.recommendation_reason ?? ''),
-          estimated_cost: Number(item.estimated_cost ?? item.price ?? 0),
-          best_for: normalizeStringArray(item.best_for),
-          suggested_item: String(item.suggested_item ?? ''),
-          imgUrl: normalizeImageUrl(
-            typeof item.imgUrl === 'string'
-              ? item.imgUrl
-              : typeof item.image === 'string'
-              ? item.image
-              : typeof item.image_url === 'string'
-              ? item.image_url
-              : undefined
-          ),
-        };
-      })
-      .filter((candidate) => candidate.venue_name),
-  };
-};
-
-const extractJsonFromText = (text: string) => {
-  const trimmed = text.replace(/`json|`/g, '').trim();
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('AI response does not include JSON payload.');
-  }
-  return trimmed.slice(start, end + 1);
-};
-
-const buildPrompt = (input: AIMatchInput) => {
-  const payload = JSON.stringify(input, null, 2);
-  return [
-    '浣犳槸椁愬巺鍦扮偣鎺ㄨ崘鏅鸿兘浣撱€?,
-    '璇锋牴鎹郴缁熻緭鍏ョ敓鎴愭帹鑽愶紝涓ユ牸鍙繑鍥?JSON锛屼笉瑕佸寘鍚浣欐枃瀛楁垨 Markdown銆?,
-    '杈撳嚭蹇呴』鍖呭惈 midpoint_analysis 鍜?candidates锛?-5椤癸級銆?,
-    'candidates 瀛楁鍖呭惈 venue_name銆乤ddress銆乴ocation{lat,lng}銆乼ype(organic|sponsored)銆乺ecommendation_reason銆乪stimated_cost銆乥est_for(鏁扮粍)銆乻uggested_item銆乮mgUrl(鍙€夈€佺洿鎺RL)銆?,
-    '绯荤粺杈撳叆濡備笅锛?,
-    payload,
-  ].join('\n');
-};
-
 const fetchRecommendation = async (input: AIMatchInput): Promise<AIRecommendationResult> => {
-  const response = await fetch(API_URL, {
+  const response = await fetch('/api/dashscope', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: Bearer ,
     },
     body: JSON.stringify({
-      prompt: buildPrompt(input),
-      stream: false,
+      input,
     }),
   });
 
   const data = (await response.json()) as Record<string, unknown>;
-  if (!response.ok || data.code) {
-    const message = String(data.message ?? 'DashScope request failed.');
+  if (!response.ok) {
+    const message = String(data.message ?? 'AI request failed.');
     throw new Error(message);
   }
 
-  const output = data.output as { text?: string } | undefined;
-  const text = typeof output?.text === 'string' ? output.text : '';
-  const jsonText = extractJsonFromText(text);
-  const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-  const normalized = normalizeRecommendation(parsed);
-  const validated = AIRecommendationResultSchema.safeParse(normalized);
+  const validated = AIRecommendationResultSchema.safeParse(data);
   if (!validated.success) {
     throw new Error('AI response does not match expected schema.');
   }
@@ -257,7 +176,6 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
     return () => clearInterval(interval);
   }, [aiResult]);
 
-  // Simulate partner selection
   useEffect(() => {
     if (selectedIndex !== null && partnerSelected === null) {
       const timer = setTimeout(() => {
@@ -296,10 +214,10 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
 
   const allMarkers = [
     ...(invitation.hostLocation
-      ? [{ position: [invitation.hostLocation.lat, invitation.hostLocation.lng] as [number, number], label: '閸?, color: '#000' }]
+      ? [{ position: [invitation.hostLocation.lat, invitation.hostLocation.lng] as [number, number], label: '主', color: '#000' }]
       : []),
     ...(invitation.guestLocation
-      ? [{ position: [invitation.guestLocation.lat, invitation.guestLocation.lng] as [number, number], label: '閸?, color: '#6b7280' }]
+      ? [{ position: [invitation.guestLocation.lat, invitation.guestLocation.lng] as [number, number], label: '客', color: '#6b7280' }]
       : []),
     ...candidateList.map((c, i) => ({
       position: [c.location.lat, c.location.lng] as [number, number],
@@ -308,11 +226,13 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
     })),
   ];
 
+  const displayTime = formatContextTime(invitation.scheduledAt);
+
   return (
     <div className="min-h-dvh bg-background flex flex-col">
       <PageHeader
-        title="AI 閹恒劏宕?
-        subtitle={`娑?${guest.nickname} 閻ㄥ嫮瀹虫鐠
+        title="AI 推荐"
+        subtitle={`${host.nickname} 与 ${guest.nickname} 的约饭`}
         rightAction={
           phase === 'confirmed' ? (
             <Link href={`/invite/${id}/track`}>
@@ -324,7 +244,6 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
         }
       />
 
-      {/* Map */}
       <MapView
         center={[31.215, 121.46]}
         zoom={13}
@@ -332,16 +251,13 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
         style={{ height: '280px' }}
       />
 
-      {/* Sheet content */}
       <div className="flex-1 -mt-4 relative z-10">
         <div className="bg-background rounded-t-2xl border-t border-border">
-          {/* Handle */}
           <div className="flex justify-center pt-3 pb-2">
             <div className="w-10 h-1 bg-muted-foreground/20 rounded-full" />
           </div>
 
           <div className="px-6 pb-36">
-            {/* AI Analysis */}
             <Card className="p-5 mb-6 shadow-none border border-border bg-muted/30">
               <div className="flex items-start gap-3">
                 <div className="size-9 rounded-xl bg-foreground flex items-center justify-center shrink-0">
@@ -349,7 +265,7 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
-                    AI 閫夊潃鍒嗘瀽
+                    AI 选址分析
                   </p>
                   <p className="text-sm leading-relaxed">
                     {streamText}
@@ -360,10 +276,10 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
                   {(aiLoading || aiError) && (
                     <div className="mt-2 space-y-1">
                       {aiLoading && (
-                        <p className="text-xs text-muted-foreground">AI 鐢熸垚涓細{generationStatus}</p>
+                        <p className="text-xs text-muted-foreground">AI 生成中：{generationStatus}</p>
                       )}
                       {aiError && (
-                        <p className="text-xs text-amber-600">AI 璇锋眰澶辫触锛屽凡浣跨敤澶囩敤鎺ㄨ崘銆?/p>
+                        <p className="text-xs text-amber-600">AI 请求失败，已使用备用推荐。</p>
                       )}
                     </div>
                   )}
@@ -371,7 +287,6 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
               </div>
             </Card>
 
-            {/* Participants */}
             <div className="flex items-center gap-2.5 mb-6">
               <div className="flex -space-x-2">
                 <Avatar className="size-8 border-2 border-background">
@@ -385,20 +300,19 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
               </div>
               <span className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">{host.nickname}</span>
-                {' '}娑撳筏' '}
+                {' '}与{' '}
                 <span className="font-medium text-foreground">{guest.nickname}</span>
               </span>
               <span className="ml-auto text-xs text-muted-foreground flex items-center gap-1.5">
                 <Clock className="size-3.5" />
-                閸涖劌鍙?14:00
+                {displayTime}
               </span>
             </div>
 
-            {/* Candidates */}
             {phase !== 'loading' && (
               <div>
                 <p className="text-sm font-bold mb-3">
-                  閹恒劏宕橀崐娆撯偓?璺?{resolvedResult.candidates.length} 娑擃亜婀撮悙?
+                  推荐候选 · {resolvedResult.candidates.length} 家
                 </p>
                 <div
                   ref={carouselRef}
@@ -425,16 +339,15 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            {/* Selection status */}
             {selectedIndex !== null && phase !== 'confirmed' && (
               <Card className="mt-6 p-5 shadow-none border border-border">
-                <p className="text-sm font-bold mb-4">闁瀚ㄩ悩鑸碘偓?/p>
+                <p className="text-sm font-bold mb-4">待确认的选择</p>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2.5 text-sm">
                     <div className="size-6 rounded-full bg-foreground flex items-center justify-center">
                       <Check className="size-3.5 text-background" />
                     </div>
-                    <span>{host.nickname}閿?/span>
+                    <span>{host.nickname} 选择</span>
                     <span className="font-medium">{resolvedResult.candidates[selectedIndex].venue_name}</span>
                   </div>
                   <div className="flex items-center gap-2.5 text-sm">
@@ -445,11 +358,11 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
                     ) : (
                       <div className="size-6 rounded-full border-2 border-muted-foreground/30 animate-pulse" />
                     )}
-                    <span>{guest.nickname}閿?/span>
+                    <span>{guest.nickname} 选择</span>
                     <span className="font-medium">
                       {partnerSelected !== null
                         ? resolvedResult.candidates[partnerSelected].venue_name
-                        : '缁涘绶熼柅澶嬪...'}
+                        : '等待对方选择...'}
                     </span>
                   </div>
                 </div>
@@ -459,11 +372,10 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      {/* Bottom CTA */}
       {selectedIndex !== null && partnerSelected !== null && phase !== 'confirmed' && (
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-background border-t border-border p-5 pb-8 z-20">
           <Button className="w-full h-13 rounded-2xl text-[15px] font-semibold" onClick={handleConfirm}>
-            绾喛顓婚崷鎵仯 璺?{resolvedResult.candidates[selectedIndex].venue_name}
+            确认约饭：{resolvedResult.candidates[selectedIndex].venue_name}
           </Button>
         </div>
       )}
@@ -473,7 +385,7 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
           <Link href={`/invite/${id}/track`} className="block">
             <Button className="w-full h-13 rounded-2xl text-[15px] font-semibold gap-2">
               <Navigation className="size-5" />
-              瀵偓婵顕遍懜?璺?閺屻儳婀呮潪銊ㄦ姉
+              查看路线与地点
             </Button>
           </Link>
         </div>
@@ -482,7 +394,6 @@ export default function InviteDetailPage({ params }: { params: Promise<{ id: str
   );
 }
 
-/* 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓 Candidate Card 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓 */
 function CandidateCard({
   candidate,
   index,
@@ -512,7 +423,6 @@ function CandidateCard({
           : 'border-border hover:border-muted-foreground/30'
       }`}
     >
-      {/* Image */}
       {candidate.imgUrl && (
         <div className="h-40 overflow-hidden bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -532,9 +442,7 @@ function CandidateCard({
             </span>
             <h4 className="font-bold text-[15px]">{candidate.venue_name}</h4>
           </div>
-          <span className="text-sm font-bold shrink-0">
-            妤納candidate.estimated_cost}
-          </span>
+          <span className="text-sm font-bold shrink-0">¥{candidate.estimated_cost}</span>
         </div>
 
         <p className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2.5">
@@ -555,7 +463,7 @@ function CandidateCard({
             ))}
           </div>
           <span className="text-xs text-muted-foreground">
-            閹恒劏宕橀敍姝縞andidate.suggested_item}
+            推荐菜：{candidate.suggested_item}
           </span>
         </div>
 
@@ -563,11 +471,11 @@ function CandidateCard({
           <Separator className="my-3" />
           <div className="flex gap-2">
             {isSelected && (
-              <Badge className="rounded-full text-xs h-6 px-3">娴ｇ姷娈戦柅澶嬪</Badge>
+              <Badge className="rounded-full text-xs h-6 px-3">你的选择</Badge>
             )}
             {isPartnerSelected && (
               <Badge variant="outline" className="rounded-full text-xs h-6 px-3 border-green-500/60 text-green-600">
-                鐎佃鏌熼惃鍕偓澶嬪
+                对方选择
               </Badge>
             )}
           </div>
@@ -576,18 +484,3 @@ function CandidateCard({
     </button>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
