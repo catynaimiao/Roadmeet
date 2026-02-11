@@ -39,10 +39,11 @@ export default function JoinPage() {
     <div className="min-h-dvh bg-background flex flex-col">
       <PageHeader title="输入邀请码" />
 
-      <div className="flex-1 p-8">
+      <div className="flex-1 px-6 py-8 flex justify-center">
+        <div className="w-full max-w-md">
         {/* ─── Step 1: Code Input ─── */}
         {step === "code" && (
-          <div className="flex flex-col items-center pt-16">
+          <div className="flex flex-col items-center pt-12">
             <div className="size-16 rounded-2xl bg-foreground flex items-center justify-center mb-8">
               <Ticket className="size-7 text-background" />
             </div>
@@ -81,14 +82,14 @@ export default function JoinPage() {
 
         {/* ─── Step 2: Found — Ticket Card ─── */}
         {step === "found" && (
-          <div className="pt-6 pb-8">
-            <Card className="overflow-hidden shadow-none border-2 border-border">
+          <div className="py-8">
+            <Card className="overflow-hidden shadow-xl border border-border/50 rounded-3xl bg-card">
               {/* Ticket Top */}
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-5">
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
                   <Badge
                     variant="secondary"
-                    className="rounded-full text-xs font-medium px-3 py-1"
+                    className="rounded-full text-xs font-medium px-4 py-1.5"
                   >
                     Coffee Chat
                   </Badge>
@@ -97,18 +98,18 @@ export default function JoinPage() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-4 mb-5">
-                  <Avatar className="size-12 border border-border">
+                <div className="flex items-center gap-5 mb-8">
+                  <Avatar className="size-16 border-2 border-border shadow-sm">
                     <AvatarImage src={host.avatarUrl} />
-                    <AvatarFallback className="text-base">
+                    <AvatarFallback className="text-xl font-medium">
                       {host.nickname[0]}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="font-semibold text-base leading-tight">
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <p className="font-bold text-xl leading-tight">
                       {host.nickname}
                     </p>
-                    <p className="text-sm text-muted-foreground mt-0.5">
+                    <p className="text-sm text-muted-foreground truncate">
                       {host.bio}
                     </p>
                   </div>
@@ -119,7 +120,7 @@ export default function JoinPage() {
                     <Badge
                       key={tag}
                       variant="outline"
-                      className="text-xs rounded-full font-normal px-2.5 py-1"
+                      className="text-xs rounded-full font-normal px-3 py-1"
                     >
                       {tag}
                     </Badge>
@@ -128,54 +129,52 @@ export default function JoinPage() {
               </div>
 
               {/* Dashed tear line */}
-              <div className="relative h-px">
-                <div className="absolute -left-3 top-1/2 -translate-y-1/2 size-6 rounded-full bg-background border border-border" />
-                <div className="absolute -right-3 top-1/2 -translate-y-1/2 size-6 rounded-full bg-background border border-border" />
-                <div className="border-t-2 border-dashed border-border w-full" />
+              <div className="relative h-6 flex items-center">
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 size-6 rounded-full bg-background" />
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 size-6 rounded-full bg-background" />
+                <div className="border-t-2 border-dashed border-border/60 w-full mx-6" />
               </div>
 
               {/* Ticket Bottom */}
-              <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground flex items-center gap-2">
+              <div className="p-8 pt-2 space-y-4">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-muted-foreground flex items-center gap-3">
                     <Clock className="size-4" />
                     时间
                   </span>
-                  <span className="text-sm font-medium">周六 14:00</span>
+                  <span className="text-sm font-semibold">周六 14:00</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground flex items-center gap-2">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-muted-foreground flex items-center gap-3">
                     <DollarSign className="size-4" />
                     预算
                   </span>
-                  <span className="text-sm font-medium">$$</span>
+                  <span className="text-sm font-semibold">$$</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground flex items-center gap-2">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-muted-foreground flex items-center gap-3">
                     <MapPin className="size-4" />
                     出发地
                   </span>
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-semibold truncate max-w-45">
                     {invitation.hostAddress}
                   </span>
                 </div>
               </div>
             </Card>
 
-            <div className="mt-6">
-              <Button
-                className="w-full h-13 rounded-2xl text-[15px] font-semibold"
-                onClick={() => setStep("location")}
-              >
-                接受邀请
-              </Button>
-            </div>
+            <Button
+              className="w-full h-14 rounded-2xl text-base font-semibold mt-8"
+              onClick={() => setStep("location")}
+            >
+              接受邀请
+            </Button>
           </div>
         )}
 
         {/* ─── Step 3: Location ─── */}
         {step === "location" && (
-          <div className="pt-8 pb-8">
+          <div className="pt-6 pb-8">
             <h2 className="text-xl font-bold mb-2">你的出发位置</h2>
             <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
               告诉我们你从哪里出发，AI 会为你们推荐最佳中间地点
@@ -183,7 +182,7 @@ export default function JoinPage() {
 
             <div className="space-y-3 mb-8">
               <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 size-[18px] text-muted-foreground" />
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-muted-foreground" />
                 <Input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
@@ -212,6 +211,7 @@ export default function JoinPage() {
             </Button>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

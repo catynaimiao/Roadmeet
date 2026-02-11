@@ -9,6 +9,10 @@ interface MapViewProps {
     position: [number, number];
     label?: string;
     color?: string;
+    html?: string;
+    iconSize?: [number, number];
+    iconAnchor?: [number, number];
+    className?: string;
   }>;
   polylines?: Array<{
     positions: [number, number][];
@@ -23,6 +27,17 @@ export function MapView({ center, zoom = 13, markers = [], polylines = [], class
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const initializingRef = useRef(false);
+  const layersRef = useRef<any>(null);
+  const isMountedRef = useRef(true);
+  const leafletRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current || initializingRef.current) return;
@@ -31,7 +46,9 @@ export function MapView({ center, zoom = 13, markers = [], polylines = [], class
 
     const initMap = async () => {
       try {
-        const L = (await import('leaflet')).default;
+        const mod = await import('leaflet');
+        const L = (mod as any).default || mod;
+        leafletRef.current = L;
         // @ts-ignore - CSS import handled by bundler
         await import('leaflet/dist/leaflet.css');
 
@@ -53,7 +70,16 @@ export function MapView({ center, zoom = 13, markers = [], polylines = [], class
           maxZoom: 19,
         }).addTo(m);
 
+        if (!isMountedRef.current) {
+          m.remove();
+          initializingRef.current = false;
+          return;
+        }
+
         mapInstanceRef.current = m;
+        layersRef.current = L.layerGroup().addTo(m);
+        setMapReady(true);
+        initializingRef.current = false;
       } catch (error) {
         console.error('Map initialization error:', error);
         initializingRef.current = false;
@@ -63,6 +89,14 @@ export function MapView({ center, zoom = 13, markers = [], polylines = [], class
     initMap();
 
     return () => {
+      if (layersRef.current) {
+        try {
+          layersRef.current.remove();
+        } catch (error) {
+          console.warn('Error removing layers:', error);
+        }
+        layersRef.current = null;
+      }
       if (mapInstanceRef.current) {
         try {
           mapInstanceRef.current.remove();
@@ -73,51 +107,59 @@ export function MapView({ center, zoom = 13, markers = [], polylines = [], class
       }
       initializingRef.current = false;
     };
-  }, [center, zoom]);
+  }, []);
 
   useEffect(() => {
     if (!mapInstanceRef.current) return;
-    const L = require('leaflet');
-    const map = mapInstanceRef.current;
+    mapInstanceRef.current.setView(center, zoom, { animate: false });
+  }, [center, zoom]);
 
-    // Clear previous layers
-    map.eachLayer((layer: any) => {
-      if (layer instanceof L.Marker || layer instanceof L.Polyline) {
-        map.removeLayer(layer);
-      }
-    });
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || !leafletRef.current || !layersRef.current) return;
+    const L = leafletRef.current;
+    const group = layersRef.current;
 
-    // Add markers
-    markers.forEach((m) => {
-      const color = m.color || '#000000';
-      const icon = L.divIcon({
-        className: 'custom-marker',
-        html: `<div style="
-          width: 32px; height: 32px;
-          background: ${color};
-          border: 3px solid white;
-          border-radius: 50%;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          display: flex; align-items: center; justify-content: center;
-          color: white; font-size: 12px; font-weight: 700;
-        ">${m.label || ''}</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+    try {
+      group.clearLayers();
+    } catch (error) {
+      console.warn('Error clearing layers:', error);
+    }
+
+      // Add markers
+      markers.forEach((m) => {
+        const color = m.color || '#000000';
+        const icon = L.divIcon({
+          className: m.className || 'custom-marker',
+          html:
+            m.html ||
+            `<div style="
+              width: 32px; height: 32px;
+              background: ${color};
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+              display: flex; align-items: center; justify-content: center;
+              color: white; font-size: 12px; font-weight: 700;
+            ">${m.label || ''}</div>`,
+          iconSize: m.iconSize || [32, 32],
+          iconAnchor: m.iconAnchor || [16, 16],
+        });
+        L.marker(m.position, { icon }).addTo(group);
       });
-      L.marker(m.position, { icon }).addTo(map);
-    });
 
-    // Add polylines
-    polylines.forEach((p) => {
-      L.polyline(p.positions, {
-        color: p.color,
-        weight: 4,
-        opacity: 0.8,
-        dashArray: p.dashArray,
-        lineJoin: 'round',
-      }).addTo(map);
-    });
-  }, [mapInstanceRef.current, markers, polylines]);
+      // Add polylines
+      polylines.forEach((p) => {
+        if (p.positions.length < 2) return;
+        L.polyline(p.positions, {
+          color: p.color,
+          weight: 4,
+          opacity: 0.8,
+          dashArray: p.dashArray,
+          lineJoin: 'round',
+        }).addTo(group);
+      });
+
+  }, [mapReady, markers, polylines]);
 
   return (
     <div

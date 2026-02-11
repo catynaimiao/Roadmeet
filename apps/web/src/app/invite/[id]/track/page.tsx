@@ -14,7 +14,7 @@ import {
 
 const MapView = dynamic(
   () => import('@/components/map-view').then((m) => m.MapView),
-  { ssr: false, loading: () => <div className="w-full h-[400px] bg-muted" /> }
+  { ssr: false, loading: () => <div className="w-full h-100 bg-muted" /> }
 );
 
 export default function TrackPage({ params }: { params: Promise<{ id: string }> }) {
@@ -55,20 +55,51 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
     return total.toFixed(1);
   };
 
+  const bubbleHtml = (avatarUrl: string, ringColor: string) => `
+    <div style="
+      position: relative;
+      width: 46px; height: 46px;
+      background: #ffffff;
+      border: 2px solid ${ringColor};
+      border-radius: 14px;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+      display: flex; align-items: center; justify-content: center;
+    ">
+      <img src="${avatarUrl}" style="width: 32px; height: 32px; border-radius: 999px; object-fit: cover;" />
+      <span style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 8px solid ${ringColor};"></span>
+      <span style="position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #ffffff;"></span>
+    </div>
+  `;
+
+  const hostLast = hostPoints[hostPoints.length - 1];
+  const guestLast = guestPoints[guestPoints.length - 1];
+
   const markers = [
-    ...(hostPoints.length > 0
-      ? [{ position: [hostPoints[hostPoints.length - 1].location.lat, hostPoints[hostPoints.length - 1].location.lng] as [number, number], label: '你', color: '#000' }]
+    ...(hostLast
+      ? [{
+          position: [hostLast.location.lat, hostLast.location.lng] as [number, number],
+          html: bubbleHtml(host.avatarUrl, '#111827'),
+          iconSize: [46, 54] as [number, number],
+          iconAnchor: [23, 54] as [number, number],
+          className: 'avatar-bubble-marker',
+        }]
       : []),
-    ...(guestPoints.length > 0
-      ? [{ position: [guestPoints[guestPoints.length - 1].location.lat, guestPoints[guestPoints.length - 1].location.lng] as [number, number], label: '友', color: '#6b7280' }]
+    ...(guestLast
+      ? [{
+          position: [guestLast.location.lat, guestLast.location.lng] as [number, number],
+          html: bubbleHtml(guest.avatarUrl, '#6b7280'),
+          iconSize: [46, 54] as [number, number],
+          iconAnchor: [23, 54] as [number, number],
+          className: 'avatar-bubble-marker',
+        }]
       : []),
     { position: [venue.location.lat, venue.location.lng] as [number, number], label: '🍽', color: '#22c55e' },
   ];
 
   const polylines = showRoute
     ? [
-        { positions: hostRoute, color: '#000000', dashArray: undefined },
-        { positions: guestRoute, color: '#6b7280', dashArray: '8 4' },
+        { positions: hostRoute, color: '#111827', dashArray: '6 6' },
+        { positions: guestRoute, color: '#6b7280', dashArray: '6 6' },
       ]
     : [];
 
@@ -87,7 +118,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
         />
 
         {/* Route toggle */}
-        <div className="absolute bottom-4 left-4 z-[1000]">
+        <div className="absolute bottom-4 left-4 z-1000">
           <button
             onClick={() => setShowRoute(!showRoute)}
             className="flex items-center gap-2 px-3 py-2 bg-background rounded-lg shadow-md border border-border text-xs font-medium"
@@ -100,7 +131,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
         </div>
 
         {showRoute && (
-          <Badge className="absolute top-20 right-4 z-[1000] rounded-full shadow-md">
+          <Badge className="absolute top-20 right-4 z-1000 rounded-full shadow-md">
             全程 {(parseFloat(calcDist(hostPoints)) + parseFloat(calcDist(guestPoints))).toFixed(1)}km
           </Badge>
         )}
@@ -186,7 +217,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* Check-in */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-background border-t border-border p-5 pb-8">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-107.5 bg-background border-t border-border p-5 pb-8">
         {!checkedIn ? (
           <Button className="w-full h-13 rounded-2xl text-[15px] font-semibold gap-2" onClick={() => setCheckedIn(true)}>
             <CheckCircle className="size-5" />
